@@ -11,6 +11,7 @@
 using dword = unsigned int;
 
 const dword DDS_MAGIC = 0x20534444;
+const dword DDPF_ALPHAPIXELS = 0x1;
 const dword DDPF_FOURCC = 0x4;
 const dword DDPF_RGB = 0x40;
 
@@ -86,6 +87,7 @@ std::unique_ptr<DdsFile> DdsLoader::load(const std::string &filePath) {
     std::cout << "Dimensions: " << header.dwWidth << "x" << header.dwHeight
               << std::endl;
     std::cout << "Mipmap count:" << header.dwMipMapCount << std::endl;
+    std::cout << "Flags: " << header.ddspf.dwFlags << std::endl;
 
     int width = header.dwWidth;
     int height = header.dwHeight;
@@ -245,6 +247,22 @@ std::unique_ptr<DdsFile> DdsLoader::load(const std::string &filePath) {
         std::cout << std::hex << "Error: " << error << std::endl;
         return nullptr;
       }
+    } else if (header.ddspf.dwFlags & DDPF_RGB) {
+      int totalSize = header.dwWidth * header.dwHeight * 4;
+      data.resize(totalSize);
+      file.read(&data[0], totalSize);
+      result->texture.create(width, height);
+      sf::Texture::bind(&result->texture);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+                   GL_UNSIGNED_BYTE, &data[0]);
+      GLenum error = glGetError();
+      if (error) {
+        std::cout << std::hex << "Error: " << error << std::endl;
+        return nullptr;
+      }
+    } else {
+      std::cout << "Unsupported format" << std::endl;
+      return nullptr;
     }
 
     return result;
